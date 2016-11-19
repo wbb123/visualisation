@@ -1,0 +1,53 @@
+body {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 7px;
+  font-weight: 400;
+  background-color: #fff;
+  width: 960px;
+  height: 700px;
+  margin-top: 10px;
+}
+.container {
+  float: left;
+}
+
+form {
+  position: relative;
+  right: 10px;
+  top: 10px;
+}
+
+ #area1 path, line {
+  fill: none;
+  stroke: #d0d0d0;
+}
+.x.axis .tick text {
+  font: 10px sans-serif;
+  fill: #555;
+}
+#area1 text {
+    font-weight: 600;
+}
+#area1{
+    float: left;
+    width: 700px;
+}
+
+svg,
+canvas {
+  position: relative;
+}
+
+#area2{
+    float: right;
+    width: 200px;
+}
+#area2 path,line{
+    fill: none;
+    stroke: #d0d0d0;
+  }
+   text {
+    font: 10px sans-serif;
+    fill: #000;
+  }
+}

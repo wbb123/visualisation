@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title> Yearly CO2 Emission by sector</title>
+
+<style>
+
+body {
+  background: #fff;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  margin: auto;
+  position: relative;
+  width: 960px;
+}
+
+text {
+  font: 10px sans-serif;
+  fill: #555;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.line {
+  fill: none;
+  stroke: #444;
+  stroke-width: 1.5px;
+}
+form {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+</style>
+<form>
+  <label><input type="radio" name="mode" value="grouped"> Grouped</label>
+  <label><input type="radio" name="mode" value="stacked" checked> Stacked</label>
+</form>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="https://rawgithub.com/d3/d3-plugins/master/fisheye/fisheye.js"></script>
+<script>
+
+var causes = ["coal","natural gas","petroleum","biomass"];
+var margin = {top: 40, right:40, bottom: 40, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+
+var x = d3.scale.ordinal()
+    .rangeRoundBands([0, width], .08);
+
+var y = d3.scale.linear()
+    .range([height, 0]);
+
+var y2 = d3.scale.linear()
+     .range([height, 0]);
+
+var color = d3.scale.linear()
+    .domain([0, 3])
+    .range(["#3182bd", "#c6dbef","#fdae6b","#31a354"]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .tickSize(0)
+    .tickPadding(6)
+    .orient("bottom");
+
+
+var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left")
+        .ticks(10);
+
+var y2Axis = d3.svg.axis()
+          .scale(y2)
+          .orient("right")
+          .ticks(10);
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+d3.tsv("emission by source.txt", type, function(error, data) {
+  console.log(data);
+  var layers = d3.layout.stack()(causes.map(function(c) {
+    return data.map(function(d) {
+      return {x:d.year, y: d[c]};
+    });
+  }));
+
+    x.domain(layers[0].map(function(d) { return d.x; }));
+    y.domain([0, d3.max(layers[layers.length - 1], function(d) { return d.y0 + d.y; })]).nice();
+
+
+   yGroupMax = d3.max(layers, function(layer) { return d3.max(layers[layers.length - 1], function(d) { return d.y; }); }),
+   yStackMax = d3.max(layers, function(layer) { return d3.max(layers[layers.length - 1], function(d) { return d.y0 + d.y; }) });
+
+console.log(yGroupMax);
+console.log(yStackMax);
+
+  var layer = svg.selectAll(".layer")
+      .data(layers)
+    .enter().append("g")
+      .attr("class", "layer")
+      .style("fill", function(d, i) { return color(i); });
+
+var tooltip = d3.select("body")
+                .append("div")
+                .attr("class","tooltip")
+                .style("opacity",0.0);
+
+var rect = layer.selectAll("rect")
+    .data(function(d) { return d; })
+  .enter().append("rect")
+    .attr("x", function(d) { return x(d.x); })
+    .attr("y", height)
+    .attr("width", x.rangeBand())
+    .attr("height", 0)
+    .on('mouseover', function(d) {
+        d3.selectAll("rect")
+          .style("opacity", 0.3);
+     d3.select(this)
+        .style("opacity", 1);
+
+        tooltip.html("The CO2 Emmision of in "+ d.x+ " year is "+ d.y+" Billion Metric Tons Carbon Dioxide2")
+          .style("left", (d3.event.pageX) + "px")
+          .style("top", (d3.event.pageY + 20) + "px")
+          .style("opacity",1.0);
+
+  })
+  .on('mouseout', function(d) {
+    d3.selectAll("rect")
+        .style("opacity", 1);
+    tooltip.style("opacity",0.0);
+  });
+
+
+rect.transition()
+    .delay(function(d, i) { return i * 10; })
+    .attr("y", function(d) { return y(d.y0 + d.y); })
+    .attr("height", function(d) { return y(d.y0) - y(d.y0 + d.y); });
+
+
+
+svg.append("g")
+    .attr("class", "x axis")
+    .attr("transform", "translate(0," + height + ")")
+    .call(xAxis)
+    .selectAll("text")
+            .style("text-anchor", "end")
+            .attr("dx", "-.8em")
+            .attr("dy", ".15em")
+            .attr("transform", "rotate(-65)");
+
+
+
+svg.append("g")
+   .attr("class", "y axisR")
+   .call(y2Axis)
+   .attr("transform", "translate(" + width + ",0)")
+   .append("text")
+   .attr("transform", "rotate(-90)")
+   .attr("y",6)
+   .attr("dx", ".9em")
+   .style("text-anchor", "end")
+   .text("CO2 Emission by Source");
+
+
+d3.selectAll("input").on("change", change);
+
+var timeout = setTimeout(function() {
+  d3.select("input[value=\"grouped\"]").property("checked", true).each(change);
+}, 2000);
+
+function change() {
+  clearTimeout(timeout);
+  if (this.value === "grouped") transitionGrouped();
+  else transitionStacked();
+}
+
+function transitionGrouped() {
+  y.domain([0, yStackMax]);
+  rect.transition()
+      .duration(500)
+      .delay(function(d, i) { return i * 10; })
+      .attr("x", function(d, i, j) { return x(d.x) + x.rangeBand() / 4 * j; })
+      .attr("width", x.rangeBand()/ 4)
+      .attr("y0",function(d) { return (d.y0); })
+      .attr("y01",function(d) { return (d.y); })
+  //    console.log(rect);
+      .transition()
+      .attr("y", function(d) { return (y(d.y)); })
+      .attr("height",function(d) { return height - y(d.y); })
+
+
+}
+
+function transitionStacked() {
+  y.domain([0, yStackMax]);
+  rect.transition()
+      .duration(500)
+      .delay(function(d, i) { return i * 10; })
+      .attr("y", function(d) { return y(d.y0 + d.y); })
+      .attr("height", function(d) { return y(d.y0) - y(d.y0 + d.y); })
+    .transition()
+      .attr("x", function(d) { return x(d.x); })
+      .attr("width", x.rangeBand());
+      console.log(rect);
+}
+
+});
+
+function type(d) {
+  causes.forEach(function(c) { d[c] = +d[c]; });
+  return d;
+}
+var fisheye = d3.fisheye.circular()
+                  .radius(120);
+var addfisheye = svg.on("mousemove", function () {
+              fisheye.focus(d3.mouse(this));
+              d3.selectAll("yearspopular").each(function(d) { d.fisheye = fisheye(d); })
+                .attr("x", function(d) { return d.fisheye.x; })
+                .attr("y", function(d) { return d.fisheye.y; })
+                .attr("z", function(d) { return d.fisheye.z * 4.5; });
+              });
+
+</script>
